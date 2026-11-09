@@ -918,7 +918,7 @@ const MODALS={
   settings:()=>`<h2>Settings</h2>
     <button class="setrow" data-act="togSfx" aria-pressed="${SET.sfx}"><span>🔔 Sound effects</span><span class="switch"></span></button>
     <button class="setrow" data-act="togMusic" aria-pressed="${SET.music}"><span>🎵 Dance music</span><span class="switch"></span></button>
-    <div class="setblock"><p><strong>Clear saved game</strong><br>Removes the name, Kiki's looks and settings saved on this device.</p><button class="ghost" data-act="clearData">Clear saved game</button>
+    <div class="setblock"><p><strong>Clear saved game</strong><br>Removes the name and sound settings saved on this device.</p><button class="ghost" data-act="clearData">Clear saved game</button>
       <div id="confirmClear" hidden><p>Are you sure? This can't be undone.</p><div class="row"><button class="danger" data-act="clearYes">Yes, clear it</button><button class="ghost" data-act="clearNo">No, keep it</button></div></div></div>`,
   contact:()=>!GATE.ok?gateHTML():`<h2>Contact the developer</h2>
     <p>Got an idea for Kiki, found something that isn't working, or just want to say hi? Send an email to:</p>
@@ -927,13 +927,173 @@ const MODALS={
     <p class="small">If the email app doesn't open, copy the address above. Kids: please ask a grown-up before sending an email.</p>`,
   privacy:()=>`<h2>Privacy policy</h2><p class="small">Kiki's Glam Studio · Last updated 8 November 2026</p>
     <h3>The short version</h3><p>This game doesn't ask for or collect personal information. There are no accounts, no ads, no in-game purchases and no tracking.</p>
-    <h3>What is saved, and where</h3><p>The name you type and your game choices (Kiki's skin tone, hair, makeup, clothes, stickers and sound settings) are saved in this web browser on this device, so the game remembers them next time. They are not sent to the developer. You can delete them at any time in Settings → Clear saved game.</p>
+    <h3>What is saved, and where</h3><p>The name you type and your sound settings are saved on this device, so the game remembers them next time. Kiki's looks reset each time the game opens. They are not sent to the developer. You can delete them at any time in Settings → Clear saved game.</p>
     <h3>Other services</h3><p>The game's files are hosted on GitHub Pages, run by GitHub, which can see your device's IP address when the game downloads and may keep standard technical logs under its own privacy statement.  The game itself does not share anything with anyone.</p>
     <h3>Children</h3><p>Kiki's Glam Studio is made for children. It does not collect personal information from children. Parents and carers can clear saved data at any time in Settings.</p>
     <h3>Changes</h3><p>If this policy changes, the new version will appear here with a new date.</p>
     <h3>Contact</h3><p>Questions about privacy? Email ${DEV_EMAIL}.</p>`
 };
 function openModal(k){$('#modalBody').innerHTML=MODALS[k]();$('#modal').hidden=false;$('#modal .mclose').focus();}
+/* ---------- CARTOON DANCE v2 (keyframed) ---------- */
+const P0={x:0,y:0,rot:0,sx:1,sy:1,head:0,aL:[0,0],aR:[0,0],lL:[0,0],lR:[0,0]};
+function mixPose(a,b,t){const o={};for(const k in P0){const A=a[k]??P0[k],B=b[k]??P0[k];o[k]=Array.isArray(P0[k])?[A[0]+(B[0]-A[0])*t,A[1]+(B[1]-A[1])*t]:A+(B-A)*t;}return o;}
+const easeIO=t=>t<.5?2*t*t:1-Math.pow(-2*t+2,2)/2;
+function evalKeys(keys,t){for(let i=0;i<keys.length-1;i++){const[t0,p0]=keys[i],[t1,p1]=keys[i+1];if(t>=t0&&t<=t1)return mixPose(p0,p1,easeIO((t-t0)/Math.max(.001,t1-t0)));}return mixPose(keys[keys.length-1][1],P0,0);}
+const mirrorPose=p=>({...p,x:-(p.x||0),rot:-(p.rot||0),head:-(p.head||0),aL:p.aR||[0,0],aR:p.aL||[0,0],lL:p.lR||[0,0],lR:p.lL||[0,0]});
+const CLAP_IN={sy:.94,sx:1.04,head:5,aL:[20,-117],aR:[20,-117]},CLAP_OUT={sy:1.03,sx:.985,y:-8,head:-4,aL:[48,-42],aR:[48,-42]};
+const FL_A={x:-12,rot:3,head:-5,sy:.98,aL:[-28,6],aR:[34,6]},FL_B=mirrorPose(FL_A);
+const RF_L={x:-14,rot:-3,head:-6,sy:.96,sx:1.02,aL:[150,-42],aR:[150,-42],lL:[8,11]},RF_UP={y:-6,sy:1.03,aL:[170,-12],aR:[170,-12]},RF_R=mirrorPose(RF_L);
+const DAB={rot:-5,head:-15,x:-4,aL:[135,0],aR:[-120,-40],lL:[6,0]};
+const MOVES={
+  clap:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?CLAP_OUT:CLAP_IN]),
+  floss:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?FL_B:FL_A]),
+  roof:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?RF_UP:((i/2)%2?RF_R:RF_L)]),
+  spin:()=>[[0,{aL:[85,-10],aR:[85,-10]}],[1.9,{aL:[85,-10],aR:[85,-10]}],[2.1,{sy:.91,sx:1.06,aL:[30,-95],aR:[30,-95]}],[2.55,{y:-54,sy:1.06,sx:.97,aL:[160,0],aR:[160,0],lL:[9,13],lR:[9,13]}],[3,{sy:.91,sx:1.06,aL:[60,-60],aR:[60,-60]}],[3.25,DAB],[4,{...DAB,y:-2}]]
+};
+const CHOREO=['clap','floss','roof','spin','clap','floss','roof','spin'];
+const MOVE_WORDS=["Clap it!",'Floss!','Raise the roof!','Spin and dab!','Again!','Floss it!','Hands up!','Freeze!'];
+
+/* cartoon hip-hop beat: 96 bpm, Cmaj7 - Am7 - Dm7 - G7, with a hook */
+function musicTrack(bars,B){if(!SET.music)return null;try{AC=AC||new(window.AudioContext||window.webkitAudioContext)();if(AC.state==='suspended')AC.resume();}catch(e){return null;}
+  const comp=AC.createDynamicsCompressor();comp.threshold.value=-16;comp.ratio.value=4;comp.attack.value=.004;comp.release.value=.2;comp.connect(AC.destination);
+  const M=AC.createGain();M.gain.value=.85;M.connect(comp);
+  const rev=AC.createConvolver(),rl=AC.sampleRate*1.4,ir=AC.createBuffer(2,rl,AC.sampleRate);for(let c=0;c<2;c++){const d=ir.getChannelData(c);for(let i=0;i<rl;i++)d[i]=(Math.random()*2-1)*Math.pow(1-i/rl,3);}rev.buffer=ir;const wet=AC.createGain();wet.gain.value=.22;rev.connect(wet).connect(M);
+  const T0=AC.currentTime+.08,st=B/4,SW=.16;
+  const env=(g,t,a,v,d)=>{g.gain.setValueAtTime(.0001,t);g.gain.exponentialRampToValueAtTime(v,t+a);g.gain.exponentialRampToValueAtTime(.0001,t+a+d);};
+  const nz=(t,d,type,f,v,q=.7,send=0)=>{const s=AC.createBufferSource(),fl=AC.createBiquadFilter(),g=AC.createGain();s.buffer=noiseBuf();fl.type=type;fl.frequency.value=f;fl.Q.value=q;env(g,t,.002,v,d);s.connect(fl).connect(g).connect(M);if(send)g.connect(rev);s.start(t,Math.random()*.5);s.stop(t+d+.05);return fl;};
+  const kick=t=>{const o=AC.createOscillator(),g=AC.createGain();o.frequency.setValueAtTime(170,t);o.frequency.exponentialRampToValueAtTime(48,t+.12);env(g,t,.003,1,.38);o.connect(g).connect(M);o.start(t);o.stop(t+.45);const p=AC.createOscillator(),gp=AC.createGain();p.type='triangle';p.frequency.setValueAtTime(220,t);p.frequency.exponentialRampToValueAtTime(95,t+.06);env(gp,t,.002,.55,.12);p.connect(gp).connect(M);p.start(t);p.stop(t+.2);nz(t,.02,'lowpass',3500,.3);};
+  const snare=t=>{nz(t,.17,'bandpass',1900,.5,.6,1);[0,.012,.024].forEach(o=>nz(t+o,.06,'bandpass',1200,.35,1.2));const o=AC.createOscillator(),g=AC.createGain();o.type='triangle';o.frequency.setValueAtTime(220,t);o.frequency.exponentialRampToValueAtTime(150,t+.08);env(g,t,.002,.25,.1);o.connect(g).connect(M);o.start(t);o.stop(t+.15);};
+  const hat=(t,v,d=.045)=>nz(t,d,'highpass',8000,v);
+  const shaper=AC.createWaveShaper(),cv=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/512-1;cv[i]=Math.tanh(2.6*x);}shaper.curve=cv;const bassBus=AC.createGain();bassBus.gain.value=1;bassBus.connect(shaper).connect(M);
+  const bass=(t,f,d)=>{const sub=AC.createOscillator(),o=AC.createOscillator(),o2=AC.createOscillator(),fl=AC.createBiquadFilter(),g=AC.createGain(),gs=AC.createGain();
+    sub.type='sine';sub.frequency.value=f;o.type='sawtooth';o.frequency.value=f*2;o2.type='square';o2.frequency.value=f*2*1.006;
+    fl.type='lowpass';fl.frequency.setValueAtTime(1400,t);fl.frequency.exponentialRampToValueAtTime(380,t+d*.8);fl.Q.value=6;
+    env(g,t,.008,.42,d);env(gs,t,.008,.75,d);o.connect(fl);o2.connect(fl);fl.connect(g).connect(bassBus);sub.connect(gs).connect(bassBus);
+    [sub,o,o2].forEach(x=>{x.start(t);x.stop(t+d+.05);});};
+  const keys=(t,fs,d,v)=>fs.forEach(f=>{const o=AC.createOscillator(),o2=AC.createOscillator(),g=AC.createGain(),trem=AC.createOscillator(),tg=AC.createGain();o.type='sine';o2.type='triangle';o.frequency.value=f;o2.frequency.value=f*2;trem.frequency.value=5;tg.gain.value=.25;trem.connect(tg).connect(g.gain);env(g,t,.01,v,d);const g2=AC.createGain();g2.gain.value=.25;o.connect(g);o2.connect(g2).connect(g);g.connect(M);g.connect(rev);[o,o2,trem].forEach(x=>{x.start(t);x.stop(t+d+.1);});});
+  const lead=(t,f,d)=>{const o=AC.createOscillator(),fl=AC.createBiquadFilter(),g=AC.createGain(),lfo=AC.createOscillator(),lg=AC.createGain();o.type='square';o.frequency.setValueAtTime(f*.97,t);o.frequency.exponentialRampToValueAtTime(f,t+.03);lfo.frequency.value=6;lg.gain.value=f*.012;lfo.connect(lg).connect(o.frequency);fl.type='lowpass';fl.frequency.value=2400;env(g,t,.008,.13,d);o.connect(fl).connect(g).connect(M);g.connect(rev);[o,lfo].forEach(x=>{x.start(t);x.stop(t+d+.08);});};
+  const scratch=t=>{for(let i=0;i<2;i++){const tt=t+i*st*1.5,fl=nz(tt,st*1.3,'bandpass',500,.5,3);fl.frequency.setValueAtTime(400,tt);fl.frequency.exponentialRampToValueAtTime(2600,tt+st*.6);fl.frequency.exponentialRampToValueAtTime(500,tt+st*1.2);}};
+  const N={G4:392,A4:440,B4:493.9,C5:523.3,D5:587.3,E5:659.3,F5:698.5,G5:784};
+  const PROG=[[65.41,[261.6,329.6,392,493.9]],[55,[220,261.6,329.6,392]],[73.42,[293.7,349.2,440,523.3]],[49,[196,246.9,293.7,349.2]]];
+  const MEL=[[[0,'E5',1],[2,'G5',1],[4,'E5',1],[6,'D5',1],[7,'C5',2],[10,'D5',1],[12,'E5',3]],
+             [[0,'C5',1],[2,'A4',1],[4,'C5',1],[6,'D5',1],[8,'E5',4],[12,'D5',1],[14,'C5',1]],
+             [[0,'D5',1],[2,'F5',1],[4,'D5',1],[6,'C5',1],[7,'A4',2],[10,'C5',1],[12,'D5',3]],
+             [[0,'B4',1],[2,'D5',1],[4,'G5',3],[8,'F5',1],[10,'D5',1],[12,'B4',1],[14,'G4',2]]];
+  const BL=[[0,1,3],[3,1,1],[6,2,1],[8,1.5,2],[11,1,1],[14,1.189,2]];
+  for(let b=0;b<bars;b++){const[r,ch]=PROG[b%4],fill=b%4===3;
+    for(let i=0;i<16;i++){const t=T0+(b*16+i)*st+(i%2?st*SW:0);
+      if(i===0||i===10||(i===7&&b%2))kick(t);
+      if(i===4||i===12)snare(t);
+      if(fill&&i>=13)snare(t);
+      if(i%2===0)hat(t,i%4===0?.14:.09);else if(i%4===3)hat(t,.05);
+      if(i===14&&!fill)hat(t,.08,.22);}
+    BL.forEach(([s,m,l])=>bass(T0+(b*16+s)*st,r*m,l*st*.95));
+    keys(T0+b*16*st,ch,B*1.6,.05);keys(T0+(b*16+10)*st+st*SW,ch,B*.35,.035);
+    if(b>=1)MEL[b%4].forEach(([s,n,l])=>lead(T0+(b*16+s)*st+(s%2?st*SW:0),N[n],l*st*.85));
+    if(fill)scratch(T0+(b*16+12)*st);}
+  return M;}
+
+function startDance(){if(DANCE)return stopDance();if(MOVING)return;MOVING=true;const B=.625,BARS=8;$('#stk').style.opacity=0;$('#bub').style.opacity=0;
+  const M=musicTrack(BARS,B),t0=performance.now()+80,last={back:false},lt=$('#lights');lt.classList.add('on');buildRig();
+  let lastBar=-1,lastBeat=-1,landed=false;DANCE={M};
+  const step=now=>{if(!DANCE)return;const t=Math.max(0,(now-t0)/1000),b=t/B,bar=Math.floor(b/4),bt=b-bar*4,d=bar>=4?-1:1;
+    if(bar>=BARS)return stopDance(true);
+    const mv=CHOREO[bar];
+    if(bar!==lastBar){lastBar=bar;landed=false;say(MOVE_WORDS[bar]);}
+    const beat=Math.floor(b);if(beat!==lastBeat){lastBeat=beat;lt.style.setProperty('--h',(beat*67)%360);if(mv!=='spin'||bt>=2)burst(200,650,5,100,['#FF5FA2','#5AB8FF','#FFE27A','#6EE7A8']);}
+    let p=evalKeys(MOVES[mv](),bt);if(d<0)p=mirrorPose(p);
+    if(mv==='spin'){
+      if(bt<2){const th=easeIO(bt/2)*Math.PI*2*d;p.sx*=spinRig(th,last);if(bt<.05)orbit(8,1300);}
+      else if(last.back){S._back=false;buildRig();last.back=false;}
+      if(bt>=3&&!landed){landed=true;sfx.boing();burst(200,660,12,120);}}
+    setPose({x:p.x,y:p.y,rot:p.rot,sx:p.sx,sy:p.sy,head:p.head});
+    setRig({aL:p.aL,aR:p.aR,lL:[p.lL[0],p.lL[1],1],lR:[p.lR[0],p.lR[1],1]});
+    DANCE.raf=requestAnimationFrame(step);};
+  DANCE.raf=requestAnimationFrame(step);}
+
+/* ---------- RIG v2: jointed, shaded cartoon limbs (dance + twirl) ---------- */
+const LEGWEAR={houndstooth:['url(#p-ging)','url(#p-ging)',44,40],kurta:[null,'#FDFDFD',44,42],karate:['#FAFAFA','#FAFAFA',46,42],tracksuit:['#FF7DB5','#FF7DB5',34,30],running:['#7B5CD6','#7B5CD6',30,27],jeans:['url(#p-denim)','url(#p-denim)',34,30],overalls:['url(#p-denim)','url(#p-denim)',34,30],pjs:['url(#p-stars)','url(#p-stars)',34,30],tutu:['#FFFFFF','#FFFFFF',30,26],ballet:['#F8CFE0','#F8CFE0',30,26],soccer:[null,'#2F80ED',30,28]};
+const NOLEGS={princess:1,mermaid:1};
+let R2=null;
+const lerp2=(a,b,t)=>[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t];
+function cyl(a,b,w,paint,edge){const dx=b[0]-a[0],dy=b[1]-a[1],L=Math.hypot(dx,dy)||1;let nx=-dy/L,ny=dx/L;if(nx>0){nx=-nx;ny=-ny;}
+  const off=k=>[[a[0]+nx*k,a[1]+ny*k],[b[0]+nx*k,b[1]+ny*k]],[h1,h2]=off(w*.2),[s1,s2]=off(-w*.3);
+  return line(a,b,edge,w+3)+line(a,b,paint,w)+line(s1,s2,'rgba(40,10,20,.16)',w*.28)+line(h1,h2,'rgba(255,255,255,.24)',w*.22);}
+function ik(H,F,L1,L2,dir){let dx=F[0]-H[0],dy=F[1]-H[1],d=Math.hypot(dx,dy)||.01;const mx=L1+L2-.5;
+  if(d>mx){F=[H[0]+dx/d*mx,H[1]+dy/d*mx];dx=F[0]-H[0];dy=F[1]-H[1];d=mx;}
+  const a=(L1*L1-L2*L2+d*d)/(2*d),h=Math.sqrt(Math.max(0,L1*L1-a*a)),px=H[0]+a*dx/d,py=H[1]+a*dy/d,nx=-dy/d,ny=dx/d,s=(nx*dir>=0)?1:-1;
+  return{K:[px+s*h*nx,py+s*h*ny],F};}
+function buildRig2(){RIG={};charSVG(S);const R=RIG;RIG=null;const no=!!NOLEGS[S.outfit],cut=no?700:(CUTS[S.outfit]||430);
+  R2={cut,sleeve:R.sleeve||null,legs:no?null:(LEGWEAR[S.outfit]||[null,null,28,24])};
+  const shoe=no?'':SHOES[S.shoes].draw();
+  $('#char').removeAttribute('transform');
+  $('#char').innerHTML=`<defs><g id="rigbody">${R.body}</g><clipPath id="rig-up"><rect x="-300" y="-300" width="1000" height="${cut+300}"/></clipPath><clipPath id="shL"><rect x="-300" y="0" width="500" height="900"/></clipPath><clipPath id="shR"><rect x="200" y="0" width="500" height="900"/></clipPath><g id="shoeL" clip-path="url(#shL)">${shoe}</g><g id="shoeR" clip-path="url(#shR)">${shoe}</g></defs>`
+    +`<g id="rShadow">${R.shadow}</g><g id="rLegs"></g><g id="rUpper"><g id="rArmFar"></g><g id="rTorso">${R.hairBack}<use href="#rigbody" clip-path="url(#rig-up)"/></g><g id="rArmNear"></g><g class="headg"><g id="rHead">${R.head}${R.top}</g></g></g>`;}
+function armSVG(side,ang,c,hands){const sl=R2.sleeve,[al,ph]=ang,A=al*Math.PI/180,B=(al+ph)*Math.PI/180;
+  const S0=[200+side*48*c,306],E=[S0[0]+side*Math.sin(A)*84*c,S0[1]+Math.cos(A)*84],H=[E[0]+side*Math.sin(B)*84*c,E[1]+Math.cos(B)*84];
+  let m=`<circle cx="${f1(S0[0])}" cy="${S0[1]+2}" r="${f1(sl?sl[2]/2+1:12)}" fill="${sl?sl[0]:SKIN}"/>`;
+  m+=cyl(S0,E,22,SKIN,SKIN_D)+cyl(E,H,20,SKIN,SKIN_D);
+  if(sl){const l=sl[1],ed=sl[3]||'rgba(0,0,0,.25)';m+=cyl(S0,l>=.5?E:lerp2(S0,E,l/.5),sl[2],sl[0],ed);if(l>.5)m+=cyl(E,lerp2(E,H,Math.min(1,(l-.5)/.5)),sl[2]-4,sl[0],ed);}
+  const rotH=Math.atan2(H[1]-E[1],H[0]-E[0])*180/Math.PI-90,hx=side<0?131:269;
+  m+=`<g transform="translate(${f1(H[0])} ${f1(H[1])}) rotate(${f1(rotH)}) translate(${-hx} -470)">${hand(hx,481,side<0?1:-1,S.mk.nails)}${wristSVG(S,side<0?1:-1)}${side<0?(HOLD[S.hold]||HOLD.none).d():''}</g>`;
+  if(side>0)m+=`<g transform="translate(${f1(H[0]-269)} ${f1(H[1]-470)})">${BAGS[S.bag].draw()}</g>`;
+  return m;}
+function renderRig2(p){const yaw=p.yaw||0,c=Math.cos(yaw),sn=Math.sin(yaw),w=.55+.45*Math.abs(c),bx=p.x||0,by=p.y||0,rot=p.rot||0,rr=rot*Math.PI/180;
+  const T=([x,y])=>{const dx=x-200,dy=y-425;return[200+dx*Math.cos(rr)-dy*Math.sin(rr)+bx,425+dx*Math.sin(rr)+dy*Math.cos(rr)+by];};
+  $('#rUpper').setAttribute('transform',`translate(${f1(bx)} ${f1(by)}) rotate(${f1(rot)} 200 425) translate(200 425) scale(${(p.sx||1).toFixed(3)} ${(p.sy||1).toFixed(3)}) translate(-200 -425)`);
+  const ys=`translate(200 0) scale(${w.toFixed(3)} 1) translate(-200 0)`;$('#rTorso').setAttribute('transform',ys);$('#rHead').setAttribute('transform',ys);
+  $('#char .headg').setAttribute('transform',`rotate(${f1(p.head||0)} 200 268)`);
+  let near='',far='';[[-1,p.aL],[1,p.aR]].forEach(([side,a])=>{const z=side*sn,m=armSVG(side,a,c);if(z>=-.001)near+=m;else far+=m;});
+  $('#rArmNear').innerHTML=near;$('#rArmFar').innerHTML=far;
+  const air=Math.max(0,-by);$('#rShadow').setAttribute('transform',`translate(${f1(200+bx*.5)} 676) scale(${(1-air/220).toFixed(3)}) translate(-200 -676)`);$('#rShadow').setAttribute('opacity',(1-air/260).toFixed(2));
+  if(!R2.legs){$('#rLegs').innerHTML='';return;}
+  const[tp,sp,tw,sw]=R2.legs;let lg='';
+  [[-1,p.fL],[1,p.fR]].map(([side,f])=>({side,f,z:side*sn})).sort((a,b)=>a.z-b.z).forEach(({side,f})=>{
+    const Hp=T([200+side*19*c,425]);let F=[200+side*26*c+f[0],650-f[1]];const r=ik(Hp,F,114,114,side*(c>=0?1:-1));const K=r.K;F=r.F;
+    lg+=cyl(Hp,K,tw,tp||SKIN,tp?'rgba(0,0,0,.25)':SKIN_D)+cyl(K,F,sw,sp||SKIN,sp?'rgba(0,0,0,.25)':SKIN_D);
+    if(!sp)lg+=`<ellipse cx="${f1(K[0])}" cy="${f1(K[1])}" rx="6" ry="4" fill="#fff" opacity=".16"/>`;
+    lg+=`<use href="#shoe${side<0?'L':'R'}" transform="translate(${f1(F[0]-(side<0?174:226))} ${f1(F[1]-650)})"/>`;});
+  $('#rLegs').innerHTML=lg;}
+
+/* poses: y>0 = bend knees (drop), y<0 = up/jump; aL/aR=[shoulder, elbow] (+ = outward/up); fL/fR=[foot dx, foot lift] */
+const Q0={x:0,y:0,rot:0,sx:1,sy:1,head:0,yaw:0,aL:[0,0],aR:[0,0],fL:[0,0],fR:[0,0]};
+function mixQ(a,b,t){const o={};for(const k in Q0){const A=a[k]??Q0[k],B=b[k]??Q0[k];o[k]=Array.isArray(Q0[k])?[A[0]+(B[0]-A[0])*t,A[1]+(B[1]-A[1])*t]:A+(B-A)*t;}return o;}
+function keysAt(keys,t){for(let i=0;i<keys.length-1;i++){const[t0,p0]=keys[i],[t1,p1]=keys[i+1];if(t>=t0&&t<=t1)return mixQ(p0,p1,easeIO((t-t0)/Math.max(.001,t1-t0)));}return mixQ(keys[keys.length-1][1],Q0,0);}
+const mirQ=p=>{const fL=p.fL||[0,0],fR=p.fR||[0,0];return{...p,x:-(p.x||0),rot:-(p.rot||0),head:-(p.head||0),aL:p.aR||[0,0],aR:p.aL||[0,0],fL:[-fR[0],fR[1]],fR:[-fL[0],fL[1]]};};
+const C_IN={y:20,sy:.985,head:6,aL:[22,-115],aR:[22,-115]},C_OUT={y:-4,sy:1.02,head:-4,aL:[52,-38],aR:[52,-38]};
+const F_A={x:-15,y:10,rot:5,head:-6,aL:[-26,6],aR:[36,6]},F_B=mirQ(F_A);
+const R_L={x:-16,y:18,rot:-4,head:-7,aL:[150,-48],aR:[150,-48],fR:[-12,18]},R_UP={y:3,head:2,aL:[172,-14],aR:[172,-14]},R_R=mirQ(R_L);
+const DAB2={y:12,x:-4,rot:-6,head:-16,aL:[135,0],aR:[-120,-40],fL:[-6,0]};
+const MOVES2={
+  clap:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?C_OUT:C_IN]),
+  floss:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?F_B:F_A]),
+  roof:()=>Array.from({length:9},(_,i)=>[i*.5,i%2?R_UP:((i/2)%2?R_R:R_L)]),
+  spin:()=>[[0,{y:8,aL:[85,-10],aR:[85,-10]}],[1.9,{y:8,aL:[85,-10],aR:[85,-10]}],[2.12,{y:36,sy:.97,aL:[30,-100],aR:[30,-100]}],[2.55,{y:-72,sy:1.04,aL:[165,0],aR:[165,0],fL:[8,34],fR:[-8,34]}],[3,{y:30,sy:.97,aL:[60,-70],aR:[60,-70]}],[3.25,DAB2],[4,{...DAB2,y:10}]]
+};
+
+function twirl3d(){if(MOVING||DANCE)return;MOVING=true;$('#stk').style.opacity=0;$('#bub').style.opacity=0;sfx.swish();setTimeout(()=>sfx.swish(),700);orbit();
+  S._back=false;buildRig2();let back=false;const t0=performance.now(),D=1800;
+  const step=now=>{const k=Math.min(1,(now-t0)/D),e=easeIO(k),yaw=e*Math.PI*4,up=Math.sin(k*Math.PI),bk=Math.cos(yaw)<0;
+    if(bk!==back){back=bk;S._back=bk;buildRig2();}
+    renderRig2({yaw,y:k<.12?k/.12*16:(k>.88?(1-k)/.12*16:-up*22),aL:[80*up+4,-15*up],aR:[80*up+4,-15*up],fL:[0,0],fR:[6*up,16*up],head:Math.sin(yaw)*4});
+    if(k<1)requestAnimationFrame(step);else{S._back=false;renderChar();$('#stk').style.opacity='';$('#bub').style.opacity='';MOVING=false;burst(200,420,12,160);say('Wheee!');}};
+  requestAnimationFrame(step);}
+
+function startDance(){if(DANCE)return stopDance();if(MOVING)return;MOVING=true;const B=.625,BARS=8;$('#stk').style.opacity=0;$('#bub').style.opacity=0;
+  S._back=false;buildRig2();const M=musicTrack(BARS,B),t0=performance.now()+80,lt=$('#lights');lt.classList.add('on');
+  let lastBar=-1,lastBeat=-1,landed=false,back=false;DANCE={M};
+  const step=now=>{if(!DANCE)return;const t=Math.max(0,(now-t0)/1000),b=t/B,bar=Math.floor(b/4),bt=b-bar*4,d=bar>=4?-1:1;
+    if(bar>=BARS)return stopDance(true);
+    const mv=CHOREO[bar];
+    if(bar!==lastBar){lastBar=bar;landed=false;say(MOVE_WORDS[bar]);}
+    const beat=Math.floor(b);if(beat!==lastBeat){lastBeat=beat;lt.style.setProperty('--h',(beat*67)%360);if(mv!=='spin'||bt>=2)burst(200,650,5,100,['#FF5FA2','#5AB8FF','#FFE27A','#6EE7A8']);}
+    let p=keysAt(MOVES2[mv](),bt);if(d<0)p=mirQ(p);
+    if(mv==='spin'){if(bt<2){p.yaw=easeIO(bt/2)*Math.PI*2*d;if(bt<.05)orbit(8,1300);}
+      if(bt>=3&&!landed){landed=true;sfx.boing();burst(200,660,12,120);}}
+    const bk=Math.cos(p.yaw||0)<0;if(bk!==back){back=bk;S._back=bk;buildRig2();}
+    renderRig2(p);DANCE.raf=requestAnimationFrame(step);};
+  DANCE.raf=requestAnimationFrame(step);}
+
 /* ---------- SCENES ---------- */
 const VIG='<radialGradient id="s-vig" cx=".5" cy=".45" r=".78"><stop offset=".55" stop-color="#2A0A1C" stop-opacity="0"/><stop offset="1" stop-color="#2A0A1C" stop-opacity=".32"/></radialGradient>';
 const GLOW='<radialGradient id="s-glow"><stop offset="0" stop-color="#FFF8DE" stop-opacity=".95"/><stop offset=".3" stop-color="#FFEBB5" stop-opacity=".5"/><stop offset="1" stop-color="#FFEBB5" stop-opacity="0"/></radialGradient>';
@@ -1057,7 +1217,8 @@ const fresh=()=>({stage:'home',player:'',
   prog:{wash:false,rinse:false,dry:false,style:false}});
 const KEY='kiki-glam-studio-v1';
 let S=fresh();
-try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&v.hair&&v.mk){const f=fresh();S={...f,...v,hair:{...f.hair,...v.hair},mk:{...f.mk,...v.mk},prog:{...f.prog,...(v.prog||{})}};}}catch(e){}
+// Every new game starts with Kiki's default look; only the player's name is remembered.
+try{const v=JSON.parse(localStorage.getItem(KEY)||'null');if(v&&v.player)S.player=String(v.player).slice(0,14);}catch(e){}
 S.stage='home';S.neck=arr(S.neck);S.wrist=arr(S.wrist);
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){}};
 const clone=o=>JSON.parse(JSON.stringify(o));
@@ -1187,6 +1348,36 @@ function setView(t){const from=VB.slice(),t0=performance.now(),d=calm?0:700;canc
   vbA=requestAnimationFrame(step);}
 const WASH=[10,22,380,510];
 const viewFor=()=>!inRobe(S)?FULL:(S.stage==='hair'&&((S.hair.bub||[]).length||S.hair.wet||SH||DR||SP))?WASH:CLOSE;
+SCENES.show=()=>{
+  const fold=(x0,x1,y0,y1,dir)=>{let s='';for(let x=x0;x<x1;x+=26)s+=`<path d="M${x},${y0}Q${x+dir*6},${(y0+y1)/2} ${x+dir*2},${y1}" stroke="#fff" stroke-opacity=".28" stroke-width="5" fill="none"/>`;return s;};
+  const bulbs=Array.from({length:15},(_,i)=>{const x=40+i*51.4;return `<circle cx="${f1(x)}" cy="604" r="22" fill="url(#s-glow)"/><circle cx="${f1(x)}" cy="604" r="6.5" fill="#FFF8E1" stroke="#E8C66A" stroke-width="2"/>`;}).join('');
+  const swag=(x)=>`<path d="M${x},0H${x+200}V70Q${x+100},132 ${x},70Z" fill="url(#s-satin)"/><path d="M${x},70Q${x+100},132 ${x+200},70" stroke="url(#s-gold)" stroke-width="7" fill="none"/><path d="M${x+20},86Q${x+100},140 ${x+180},86" stroke="#fff" stroke-opacity=".35" stroke-width="5" fill="none"/>`+Array.from({length:11},(_,i)=>{const t=i/10,xx=x+t*200,yy=70+4*t*(1-t)*62*1.0;return `<path d="M${f1(xx)},${f1(yy)}v14" stroke="#F2C94C" stroke-width="2.5"/>`;}).join('');
+  const tassel=x=>`<path d="M${x},64v34" stroke="#E0A92E" stroke-width="3"/><circle cx="${x}" cy="102" r="8" fill="url(#s-gold)"/><path d="M${x-8},106L${x-10},134H${x+10}L${x+8},106Z" fill="url(#s-gold)"/>`;
+  return `<defs>${VIG}${GLOW}${GOLD}
+  <linearGradient id="s-back" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5B1658"/><stop offset=".6" stop-color="#2E0B3D"/><stop offset="1" stop-color="#1C0626"/></linearGradient>
+  <linearGradient id="s-satin" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="52" y2="0" spreadMethod="reflect"><stop offset="0" stop-color="#C2266F"/><stop offset=".35" stop-color="#FF7DB9"/><stop offset=".55" stop-color="#FFD6EA"/><stop offset=".7" stop-color="#FF8DC4"/><stop offset="1" stop-color="#D93D86"/></linearGradient>
+  <linearGradient id="s-sheen" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff" stop-opacity=".25"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#5A0A33" stop-opacity=".35"/></linearGradient>
+  <linearGradient id="s-floor" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFC9E2"/><stop offset=".5" stop-color="#F48BBE"/><stop offset="1" stop-color="#B83C7C"/></linearGradient>
+  <linearGradient id="s-beam" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#FFF4FA" stop-opacity=".6"/><stop offset="1" stop-color="#FFF4FA" stop-opacity=".03"/></linearGradient>
+  <radialGradient id="s-pool" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#fff" stop-opacity=".7"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></radialGradient></defs>
+  <rect width="800" height="700" fill="url(#s-back)"/>
+  ${Array.from({length:46},(_,i)=>`<path d="${spark((i*197)%800,(i*131)%520,1.6+(i%4)*1.3)}" fill="#fff" opacity="${.35+(i%4)*.15}"/>`).join('')}
+  <path d="M400,160L420,215H478L431,249L449,305L400,271L351,305L369,249L322,215H380Z" fill="none" stroke="#FFD6EA" stroke-width="3" opacity=".35"/>
+  <rect y="590" width="800" height="110" fill="url(#s-floor)"/>
+  ${Array.from({length:9},(_,i)=>`<path d="M${i*100},590L${i*130-120},700" stroke="#fff" stroke-opacity=".25" stroke-width="2"/>`).join('')}
+  <rect y="588" width="800" height="6" fill="#fff" opacity=".7"/>
+  <ellipse cx="400" cy="652" rx="240" ry="42" fill="url(#s-pool)"/>
+  ${bulbs}
+  <path d="M250,-10L120,660L420,660Z" fill="url(#s-beam)"/><path d="M550,-10L380,660L680,660Z" fill="url(#s-beam)"/>
+  <path d="M0,0H232Q190,180 128,318Q168,480 214,700H0Z" fill="url(#s-satin)"/><path d="M0,0H232Q190,180 128,318Q168,480 214,700H0Z" fill="url(#s-sheen)"/>
+  <path d="M800,0H568Q610,180 672,318Q632,480 586,700H800Z" fill="url(#s-satin)"/><path d="M800,0H568Q610,180 672,318Q632,480 586,700H800Z" fill="url(#s-sheen)"/>
+  <path d="M232,0Q190,180 128,318Q168,480 214,700" stroke="#8E1650" stroke-opacity=".45" stroke-width="6" fill="none"/><path d="M568,0Q610,180 672,318Q632,480 586,700" stroke="#8E1650" stroke-opacity=".45" stroke-width="6" fill="none"/>
+  <ellipse cx="132" cy="320" rx="26" ry="11" fill="url(#s-gold)" stroke="#A97A1E" stroke-width="2"/><path d="M118,328L112,380H152L146,328Z" fill="url(#s-gold)"/><path d="M116,346H148M114,362H150" stroke="#A97A1E" stroke-width="1.5"/>
+  <ellipse cx="668" cy="320" rx="26" ry="11" fill="url(#s-gold)" stroke="#A97A1E" stroke-width="2"/><path d="M654,328L648,380H688L682,328Z" fill="url(#s-gold)"/><path d="M652,346H684M650,362H686" stroke="#A97A1E" stroke-width="1.5"/>
+  ${swag(0)}${swag(200)}${swag(400)}${swag(600)}${tassel(200)}${tassel(400)}${tassel(600)}
+  <rect width="800" height="14" fill="url(#s-gold)"/>
+  ${Array.from({length:8},(_,i)=>`<circle cx="${60+i*97}" cy="696" r="34" fill="url(#s-glow)"/>`).join('')}${vg}`;};
+
 let lastScene='';
 const esc=t=>String(t).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function renderHome(full){const c=clone(S);c.stage='clothes';c.hair.messy=false;c.hair.wet=false;c.hair.bub=[];c.bag='none';c.hold='none';c.glasses='none';
